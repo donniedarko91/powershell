@@ -1,5 +1,4 @@
-# PowerShell script to delete files older than 30 days from the currently signed-in user's Downloads folder,
-# clean C:\Lapwing, and create a desktop shortcut to C:\Lapwing.
+# PowerShell script to delete files older than 28 days from the currently signed-in user's Downloads & Lapwing folder
 # Define the log file path
 $logPath = "C:\Temp\CleanupLog.txt"
 # Create C:\Temp if it doesn't exist
@@ -27,8 +26,8 @@ $userProfilePath = [System.Environment]::GetFolderPath("UserProfile")
 $downloadsFolder = Join-Path $userProfilePath "Downloads"
 # Check if the Downloads folder exists
 if (Test-Path $downloadsFolder) {
-   # Get all files older than 30 days in the Downloads folder
-   $filesToDelete = Get-ChildItem $downloadsFolder -Recurse -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
+   # Get all files older than 28 days in the Downloads folder
+   $filesToDelete = Get-ChildItem $downloadsFolder -Recurse -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-28) }
    # Delete files in Downloads and log the actions
    foreach ($file in $filesToDelete) {
        try {
@@ -57,6 +56,3 @@ foreach ($file in $lapwingFiles) {
        Add-Content -Path $logPath -Value $logEntry
    }
 }
-# Indicate script completion
-Add-Content -Path $logFile -Value "Cleanup completed on $currentDate."
-Write-Host "Cleanup completed."
