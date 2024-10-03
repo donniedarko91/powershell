@@ -1,38 +1,60 @@
-﻿# Define the path to the Downloads folder
-$downloadsFolder = [System.IO.Path]::Combine($env:USERPROFILE, 'Downloads')
-# Define the log file path in a user-accessible directory
-$logDir = [System.IO.Path]::Combine($env:USERPROFILE, 'CleanupLogs')
-$logFile = [System.IO.Path]::Combine($logDir, 'CleanupLog.txt')
-# Create the log directory if it does not exist
-if (-not (Test-Path -Path $logDir)) {
-   New-Item -ItemType Directory -Path $logDir
+# PowerShell script to delete files older than 30 days from the currently signed-in user's Downloads folder,
+# clean C:\Lapwing, and create a desktop shortcut to C:\Lapwing.
+# Define the log file path
+$logPath = "C:\Temp\CleanupLog.txt"
+# Create C:\Temp if it doesn't exist
+if (-not (Test-Path -Path "C:\Temp")) {
+   New-Item -Path "C:\Temp" -ItemType Directory
 }
-# Get the current date
-$currentDate = Get-Date
-# Get all files and folders in the Downloads folder
-$items = Get-ChildItem -Path $downloadsFolder
-# Check if there are any items to process
-if ($items.Count -eq 0) {
-   Add-Content -Path $logFile -Value "No items found in the Downloads folder."
-   Write-Host "No items found in the Downloads folder."
-} else {
-   # Loop through each item and delete if older than 30 days
-   foreach ($item in $items) {
-       if ($item.LastWriteTime -lt $currentDate.AddDays(-30)) {
-           if ($item.PSIsContainer) {
-               # If the item is a folder, remove it
-               Remove-Item $item.FullName -Recurse -Force
-               Add-Content -Path $logFile -Value "Folder: $($item.FullName) deleted on $currentDate"
-               Write-Host "Deleted folder: $($item.FullName)"
-           } else {
-               # If the item is a file, remove it
-               Remove-Item $item.FullName -Force
-               Add-Content -Path $logFile -Value "File: $($item.FullName) deleted on $currentDate"
-               Write-Host "Deleted file: $($item.FullName)"
-           }
-       } else {
-           Write-Host "Not deleting (too new): $($item.FullName)"
+# Create C:\Lapwing if it doesn't exist
+$lapwingFolder = "C:\Lapwing"
+if (-not (Test-Path -Path $lapwingFolder)) {
+   New-Item -Path $lapwingFolder -ItemType Directory
+}
+# Create a shortcut on the desktop to C:\Lapwing
+$shortcutPath = Join-Path ([System.Environment]::GetFolderPath("Desktop")) "Lapwing.lnk"
+if (-not (Test-Path -Path $shortcutPath)) {
+   $WScriptShell = New-Object -ComObject WScript.Shell
+   $shortcut = $WScriptShell.CreateShortcut($shortcutPath)
+   $shortcut.TargetPath = $lapwingFolder
+   $shortcut.WorkingDirectory = $lapwingFolder
+   $shortcut.Description = "Shortcut to Lapwing Folder"
+   $shortcut.IconLocation = "shell32.dll, 3" # Default folder icon
+   $shortcut.Save()
+}
+# Get the currently signed-in user's profile path
+$userProfilePath = [System.Environment]::GetFolderPath("UserProfile")
+$downloadsFolder = Join-Path $userProfilePath "Downloads"
+# Check if the Downloads folder exists
+if (Test-Path $downloadsFolder) {
+   # Get all files older than 30 days in the Downloads folder
+   $filesToDelete = Get-ChildItem $downloadsFolder -Recurse -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
+   # Delete files in Downloads and log the actions
+   foreach ($file in $filesToDelete) {
+       try {
+           Remove-Item $file.FullName -Force
+           # Log the deletion
+           $logEntry = "$(Get-Date) - Deleted from Downloads: $($file.FullName)"
+           Add-Content -Path $logPath -Value $logEntry
+       } catch {
+           # Log any errors
+           $logEntry = "$(Get-Date) - Error deleting from Downloads: $($file.FullName) - $_"
+           Add-Content -Path $logPath -Value $logEntry
        }
+   }
+}
+# Delete items older than 28 days in C:\Lapwing
+$lapwingFiles = Get-ChildItem $lapwingFolder -Recurse -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-28) }
+foreach ($file in $lapwingFiles) {
+   try {
+       Remove-Item $file.FullName -Force
+       # Log the deletion
+       $logEntry = "$(Get-Date) - Deleted from Lapwing: $($file.FullName)"
+       Add-Content -Path $logPath -Value $logEntry
+   } catch {
+       # Log any errors
+       $logEntry = "$(Get-Date) - Error deleting from Lapwing: $($file.FullName) - $_"
+       Add-Content -Path $logPath -Value $logEntry
    }
 }
 # Indicate script completion
